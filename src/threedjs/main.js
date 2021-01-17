@@ -1,17 +1,43 @@
-import * as THREE from 'three/build/three'
-import Stats from 'three/examples/jsm/libs/stats.module';
-import { GUI } from 'three/examples/jsm/libs/dat.gui.module';
-import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js';
-import {SceneUtils} from 'three/examples/jsm/utils/SceneUtils'
+import * as THREE from 'three-r124/build/three'
+import Stats from 'three-r124/examples/jsm/libs/stats.module';
+import { GUI } from 'three-r124/examples/jsm/libs/dat.gui.module';
+import { TrackballControls } from 'three-r124/examples/jsm/controls/TrackballControls.js';
+import {SceneUtils} from 'three-r124/examples/jsm/utils/SceneUtils'
 
-// import 'three/examples/jsm/geometries/BoxLineGeometry'
-import {ParametricGeometries} from 'three/examples/jsm/geometries/ParametricGeometries'
-import {ConvexGeometry} from 'three/examples/jsm/geometries/ConvexGeometry'
+// import 'three-r124/examples/jsm/geometries/BoxLineGeometry'
+import {ParametricGeometries} from 'three-r124/examples/jsm/geometries/ParametricGeometries'
+import {ConvexGeometry} from 'three-r124/examples/jsm/geometries/ConvexGeometry'
 
-// create a scene, that will hold all our elements such as objects, cameras and lights.
+import {addTextures} from './texture';
+
+var planeBG = new THREE.Mesh()
+var planeBGGeometry = new THREE.PlaneGeometry(1000, 200, 20, 20);
+
+// create a scene, that will hold all elements such as objects, cameras and lights.
 const scene = new THREE.Scene();
-const planeGeometry = new THREE.PlaneGeometry(65, 30);
+const camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 1000 );
+var controls = function () {
+}
 
+// add spotlight for a bit of light
+var spotLightBG = new THREE.SpotLight(0xcccccc);
+var pointColor = 0xccffcc;
+var ambientcol = 0x1c1c1c
+var ambientLightIntensity = 1
+var ambientLightStatus = true
+
+// status change variables
+var spotlightStatus  = false
+var lensFlareStatus = false
+var hemisphereLightStatus = false
+var pointLightStatus = false
+var pointLightDebug = false
+var PointLightDistance = 20
+var PointLightIntensity = 2
+var dirLightStatus = false
+
+// imported class initializations
+var import_texture = new addTextures()
 class ThreejsScene {
     constructor() {
 
@@ -21,105 +47,95 @@ class ThreejsScene {
         // call the render function
 
         this.step = 0;
-        this.sphere = new THREE.Mesh()
-        this.cube = new THREE.Mesh()
-
-        this.camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 1000 );
         this.renderer = new THREE.WebGLRenderer();
-        this.ambientLight = new THREE.AmbientLight(0x0c0c0c)
-        this.spotlight = new THREE.SpotLight(0xffffff)
-
         this.colorcube = new THREE.Color()
+
+        controls = new function () {
+            this.rotationSpeed = 0.03;
+            this.pointLightDebug = pointLightDebug
+            this.pointLightStatus = pointLightStatus
+            this.pointColor = pointColor;
+            this.pointDistance = PointLightDistance;
+            this.pointIntensity = PointLightIntensity;
+            this.ambientLightStatus = ambientLightStatus
+            this.ambientLightIntensity = ambientLightIntensity
+            this.ambientColor = ambientcol;
+            this.spotlightStatus = spotlightStatus;
+            this.lensFlareStatus = lensFlareStatus
+            this.hemisphereLightStatus = hemisphereLightStatus;
+            this.dirLightStatus = dirLightStatus
+            this.numberOfObjects = scene.children.length;
+    
+            this.outputObjects = function () {
+                console.log(scene.children.length);
+            }
+        };
+
+        const planeBGMaterial = new THREE.MeshLambertMaterial({
+            map: import_texture.loadTextureOnBG()
+        })
+        // var planeMaterial = new THREE.MeshLambertMaterial();
+        planeBG = new THREE.Mesh(planeBGGeometry, planeBGMaterial);
+        planeBG.receiveShadow = true;
     }
 
     createScene(canvas) {
 
-        // this.renderer.setClearColor(new THREE.Color(0x2cab72));
+        this.renderer.setClearColor(new THREE.Color(0xaaaaff, 1.0))
         this.renderer.setSize( window.innerWidth, window.innerHeight );
+        this.renderer.setPixelRatio( window.devicePixelRatio );
+
+        // allow shadows in the scene
         this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMapSoft = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         // show axes in the screen
-        this.axes = new THREE.AxesHelper(20);
+        this.axes = new THREE.AxesHelper(50);
 
         // create a sphere
-        const sphereGeometry = new THREE.SphereGeometry(4, 20, 20);
-        const sphereMaterial = new THREE.MeshPhysicalMaterial({
+        const sphereLightGeometry = new THREE.SphereGeometry(4, 20, 20);
+        const sphereLightMaterial = new THREE.MeshPhysicalMaterial({
             color: 0x7777FF
         });
-        this.sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        this.sphereLight = new THREE.Mesh(sphereLightGeometry, sphereLightMaterial);
         // position the sphere
-        this.sphere.position.set(20, 4, 2);
-        this.sphere.castShadow = true
+        this.sphereLight.position.set(-50, -10, 20);
+        this.sphereLight.castShadow = true
 
         scene.add(this.axes);
-        // add the sphere to the scene
-        scene.add(this.sphere);
-
-        this.addPlaneDesign()
         
-        // position and point the camera to the center of the scene
-        this.camera.position.set(-30, 50, 30);
-        this.camera.lookAt(scene.position);
-
-        scene.add(this.ambientLight)
-
-        this.spotlight.position.set( -40, 60, -10)
-        this.spotlight.castShadow = true
-        scene.add(this.spotlight)
+        // position and point the camera to the zcenter of the scene
+        // camera.position.set(0, 28, 104);
+        // camera.lookAt(scene.position);
+        camera.position.copy(new THREE.Vector3(-30, 40, 30));
+        camera.lookAt(new THREE.Vector3(0, 0, 0));      
 
         this.addGeometries()
 
         // scene.fog = new THREE.FogExp2(0xffffff, 0.005);
 
-        // scene.overrideMaterial = new THREE.MeshLambertMaterial({
-        //     color: 0xffffff
-        // });
+        // rotate and position the plane
+        planeBG.rotation.x = -0.5 * Math.PI;
+        planeBG.position.x = 15;
+        planeBG.position.y = 0;
+        planeBG.position.z = 0;
+
+        // add the plane to the scene
+        scene.add(planeBG);
+
+        spotLightBG.position.set(-40, 60, -10);
+        spotLightBG.lookAt(planeBG);
+        scene.add(spotLightBG);
+        spotLightBG.visible = true
 
         // show performance monitor
         this.stats.setMode(0) // show frame per second rendered
-        
-        // console.log(canvas)
         canvas.appendChild(this.stats.dom)
         canvas.appendChild( this.renderer.domElement );
         
-        this.trackballControls = new TrackballControls(this.camera, this.renderer.domElement)
+        this.trackballControls = new TrackballControls(camera, this.renderer.domElement)
         this.clock = new THREE.Clock();
-    }
-
-    addPlaneDesign() {
-
-        // create the ground plane
-        this.planeMaterial = new THREE.MeshPhysicalMaterial({
-            color: 0xab2c65,
-            wireframe: false
-        });
-
-        const plane = new THREE.Mesh(planeGeometry, this.planeMaterial);
-        // rotate and position the plane
-        plane.rotation.x = -0.5 * Math.PI;
-        plane.position.set(15, 0, 0);
-        plane.receiveShadow = true
-
-        // add the plane to the scene
-        scene.add(plane);
-        
-        const cubeGeometry = new THREE.BoxGeometry(4, 4, 4);
-
-        for (var j = 0; j < (planeGeometry.parameters.height / 5); j++) {
-            for (var i = 0; i < planeGeometry.parameters.width / 5; i++) {
-                // const rnd = Math.random() * 0.75 + 0.25;
-                const cubeMaterial = new THREE.MeshLambertMaterial();
-                cubeMaterial.color = this.colorcube;
-                this.cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-      
-                this.cube.position.z = -((planeGeometry.parameters.height) / 2) + 2 + (j * 5);
-                this.cube.position.x = -((planeGeometry.parameters.width) / 4) + 2 + (i * 5);
-                this.cube.position.y = -2;
-      
-                scene.add(this.cube);
-            }
-        }
     }
 
     addGeometries() {
@@ -178,7 +194,6 @@ class ThreejsScene {
         ];
 
         const geom = new THREE.Geometry();
-        console.log(geom)
         geom.vertices = vertices;
         geom.faces = faces;
         geom.computeFaceNormals();
@@ -196,8 +211,6 @@ class ThreejsScene {
 
         // create a OctahedronGeometry
         geoms.push(new THREE.OctahedronGeometry(3));
-
-        console.log(geoms.length)
 
         // create a geometry based on a function
         geoms.push(new THREE.ParametricGeometry(ParametricGeometries.mobius3d, 20, 10));
@@ -229,15 +242,13 @@ class ThreejsScene {
                 e.castShadow = true
             });
 
-            mesh.position.x = -10 + ((i % 4) * 12);
+            mesh.position.x = -20 + ((i % 4) * 10);
             mesh.position.y = 4;
             mesh.position.z = -10 + (j * 12);
 
             if ((i + 1) % 4 == 0) j++;
             scene.add(mesh);
         }
-
-        console.log(geoms.length)
 
     }
 
@@ -246,83 +257,50 @@ class ThreejsScene {
         // console.log(window.innerHeight)
         // console.log(window.innerWidth/window.innerHeight)
         // console.log(this.camera.aspect)
-        this.camera.aspect = window.innerWidth / window.innerHeight
-        this.camera.updateProjectionMatrix()
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
         this.renderer.setSize(window.innerWidth, window.innerHeight)
     }
 
     buttons() {
 
-        this.controls = new function () {
-            this.rotationSpeed = 0.02;
-            this.bouncingSpeed = 0.03;
-
-            // console.log(scene)
-
-            this.addCube = function () {
-    
-                const cubeSize = Math.ceil((Math.random() * 3));
-                const cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-                const cubeMaterial = new THREE.MeshLambertMaterial({
-                    color: Math.random() * 0xffffff
-                });
-                const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-                cube.castShadow = true;
-                cube.name = "cube-" + scene.children.length;
-    
-                // position the cube randomly in the scene
-                
-                // x for width, y for height, z for depth
-                cube.position.x = -15 + Math.round((Math.random() * planeGeometry.parameters.width));
-                cube.position.y = Math.round((Math.random() * 5));
-                cube.position.z = -15 + Math.round((Math.random() * planeGeometry.parameters.height));
-    
-                // add the cube to the scene
-                scene.add(cube);
-                this.numberOfObjects = scene.children.length;
-                
-                console.log(scene.children)
-            };
-
-            this.numberOfObjects = scene.children.length;
-
-            this.removeCube = function () {
-                const allChildren = scene.children;
-                const lastObject = allChildren[allChildren.length - 1];
-                // remove only meshes from scene
-                if (lastObject instanceof THREE.Mesh) {
-                    scene.remove(lastObject);
-                    this.numberOfObjects = scene.children.length;
-                }
-                console.log(scene.children)
-            };
-
-            // get and manipulate mesh objects
-            this.getobject = function () {
-                // const object = scene.getObjectByName('cube-7')
-                // alert(object.position.z)
-                const allChildren = scene.children;
-                const lastObject = allChildren[allChildren.length - 1];
-                // remove only meshes from scene
-                if (lastObject instanceof THREE.Mesh) {
-                    lastObject.position.x = -30 + Math.round((Math.random() * planeGeometry.parameters.width));
-                    lastObject.position.y = Math.round((Math.random() * 5));
-                    lastObject.position.z = -20 + Math.round((Math.random() * planeGeometry.parameters.height));
-                    console.log(lastObject.position)
-                }
-            }
-    
-            this.outputObjects = function () {
-                console.log(scene.children.length);
-            }
-        };
-
-        this.gui.add(this.controls, 'rotationSpeed', 0, 0.5);
-        this.gui.add(this.controls, 'addCube');
-        this.gui.add(this.controls, 'removeCube');
-        this.gui.add(this.controls, 'outputObjects');
-        this.gui.add(this.controls, 'numberOfObjects').listen();
-        this.gui.add(this.controls, 'getobject');
+        this.gui.add(controls, 'numberOfObjects').listen();
+        this.gui.add(controls, 'spotlightStatus').onChange(function (e) {
+            spotlightStatus = e
+        });
+        this.gui.add(controls, 'lensFlareStatus').onChange(function (e) {
+            lensFlareStatus = e
+        });
+        this.gui.add(controls, 'ambientLightStatus').onChange(function (e) {
+            ambientLightStatus = e
+        });
+        this.gui.add(controls, 'ambientLightIntensity', 0, 5, 0.2).onChange(function () {
+            ambientLightIntensity = controls.ambientLightIntensity;
+        });
+        this.gui.addColor(controls, 'ambientColor').onChange(function () {
+            ambientcol = controls.ambientColor;
+        });
+        this.gui.add(controls, 'pointLightStatus').onChange(function (e) {
+            pointLightStatus = e
+        });
+        this.gui.add(controls, 'pointLightDebug').onChange(function (e) {
+            pointLightDebug = e
+        })
+        this.gui.addColor(controls, 'pointColor').onChange(function () {
+            pointColor = controls.pointColor;
+        });
+        this.gui.add(controls, 'pointDistance', 0, 100).onChange(function (e) {
+            PointLightDistance = e;
+        });
+        this.gui.add(controls, 'pointIntensity', 0, 3).onChange(function (e) {
+            PointLightIntensity = e;
+        });
+        this.gui.add(controls, 'hemisphereLightStatus').onChange(function (e) {
+            hemisphereLightStatus = e
+        });
+        this.gui.add(controls, 'dirLightStatus').onChange(function (e) {
+            dirLightStatus = e
+        });
     }
 
     animate() {
@@ -330,22 +308,22 @@ class ThreejsScene {
         this.trackballControls.update(this.clock.getDelta());
         this.stats.update();
 
-        // rotate the cube around its axes
-
-        // bounce the sphere up and down
-        this.step += this.controls.bouncingSpeed; // speed of sphere animation
-        this.sphere.position.x = 20 + (10 * (Math.cos(this.step)));
-        this.sphere.position.y = 2 + (10 * Math.abs(Math.sin(this.step)));
-
-        this.colorcube= new THREE.Color(Math.random() * 6, Math.random() * 6, Math.random() * 6); 
-        // console.log(this.colorcube)
-        // this.cube.color = this.colorcube
-        this.addPlaneDesign()
+        import_light.addAmbientLight()
+        import_light.addSpotLight()
+        import_light.loadLensflareAsSun()
+        import_light.addHemiLight()
+        import_light.addPointLight()
+        import_light.addDirLight(planeBG)
+        // console.log(import_light)
 
         requestAnimationFrame(this.animate.bind(this));
-        this.renderer.render( scene, this.camera );
+        this.renderer.render( scene, camera );
     }
 }
 
-console.log('works')
-export { ThreejsScene }
+const instance_scene = new ThreejsScene()
+
+import {initLights} from './light';
+var import_light = new initLights();
+
+export { scene, controls, instance_scene }

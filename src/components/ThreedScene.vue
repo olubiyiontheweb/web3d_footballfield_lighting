@@ -4,11 +4,8 @@
 </template>
 
 <script>
-import {ThreejsScene} from '../threedjs/main.js'
-
-// const canvas = document.getElementById('renderCanvas')
-
-const instance_scene = new ThreejsScene()
+import {instance_scene} from '../threedjs/main.js'
+// import {addHouseAndTree} from '../threedjs/treeHouse.js'
 
 export default {
   name: 'ThreedScene',
@@ -16,8 +13,8 @@ export default {
     msg: String
   },
   metaInfo: {
-    title: 'Sport',
-    titleTemplate: '%Concert - Geometry World!',
+    title: 'Sport Lighting',
+    titleTemplate: '%s - Football Field',
     htmlAttrs: {
       lang: 'en',
       amp: true
@@ -38,7 +35,6 @@ export default {
       // entire view has been rendered
 
       this.canvas = this.$refs.renderCanvas
-      // this.scene = new ThreejsScene(this.canvas)
 
       instance_scene.createScene(this.canvas)
 
